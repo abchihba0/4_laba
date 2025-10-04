@@ -99,12 +99,12 @@ archive_files() {
     local current
     current=$(folder_size_bytes "$folder")
     if [ "$current" -le "$limit_bytes" ]; then
-        echo "archive_files: текущий размер ($current) <= лимит ($limit_bytes). Ничего архивировать."
+        echo "archive_files: current size ($current) <= limit ($limit_bytes). Nothing to archive."
         return 0
     fi
 
     local need=$((current - limit_bytes))
-    echo "archive_files: нужно освободить $need байт (текущий $current, лимит $limit_bytes)."
+    echo "archive_files: need to free $need bytes (current $current, limit $limit_bytes)."
 
     local tmp
     tmp=$(mktemp)
@@ -126,20 +126,20 @@ archive_files() {
     rm -f "$tmp"
 
     if [ "${#files_to_archive[@]}" -eq 0 ]; then
-        echo "archive_files: ничего не найдено для архивирования."
+        echo "archive_files: nothing found to archive."
         return 1
     fi
 
     local archive_dir="$BACKUP_DIR/$moment/$(basename "$folder")"
     local archive_name="$archive_dir/$(date +%Y%m%d%H%M%S).tar.gz"
-    echo "archive_files: архивирую ${#files_to_archive[@]} файлов -> $archive_name"
+    echo "archive_files: archiving ${#files_to_archive[@]} files -> $archive_name"
     tar -czf "$archive_name" "${files_to_archive[@]}"
     if [ $? -eq 0 ]; then
-        echo "archive_files: архив создан. Удаляю заархивированные файлы..."
+        echo "archive_files: archive created. Removing archived files..."
         rm -f "${files_to_archive[@]}"
-        echo "archive_files: удалены заархивированные файлы."
+        echo "archive_files: archived files removed."
     else
-        echo "archive_files: tar вернул ошибку. Архивация не выполнена."
+        echo "archive_files: tar returned error. Archiving failed."
         return 2
     fi
     return 0
@@ -154,12 +154,12 @@ delete_old_files_minimal() {
     local current
     current=$(folder_size_bytes "$folder")
     if [ "$current" -le "$limit_bytes" ]; then
-        echo "delete_old_files_minimal: уже меньше лимита."
+        echo "delete_old_files_minimal: already below limit."
         return 0
     fi
 
     local need=$((current - limit_bytes))
-    echo "delete_old_files_minimal: нужно удалить $need байт."
+    echo "delete_old_files_minimal: need to delete $need bytes."
 
     local tmp
     tmp=$(mktemp)
@@ -181,13 +181,13 @@ delete_old_files_minimal() {
     rm -f "$tmp"
 
     if [ "${#del_files[@]}" -eq 0 ]; then
-        echo "delete_old_files_minimal: нет файлов для удаления."
+        echo "delete_old_files_minimal: no files to delete."
         return 1
     fi
 
-    echo "delete_old_files_minimal: удаляю ${#del_files[@]} файлов..."
+    echo "delete_old_files_minimal: deleting ${#del_files[@]} files..."
     rm -f "${del_files[@]}"
-    echo "delete_old_files_minimal: удаление завершено."
+    echo "delete_old_files_minimal: deletion completed."
     return 0
 }
 
@@ -195,36 +195,36 @@ delete_old_files_minimal() {
 
 # 0) Проверки окружения
 if ! command -v xfs_quota >/dev/null 2>&1; then
-    echo "Ошибка: xfs_quota не найден. Установите пакет xfsprogs."
+    echo "Error: xfs_quota not found. Install xfsprogs package."
     exit 1
 fi
 
 if ! command -v numfmt >/dev/null 2>&1; then
-    echo "Ошибка: numfmt (coreutils) не найден."
+    echo "Error: numfmt (coreutils) not found."
     exit 1
 fi
 
 # Убедимся, что base dir существует
 if [ ! -d "$BASE_DIR" ]; then
-    echo "Ошибка: BASE_DIR $BASE_DIR не найден."
+    echo "Error: BASE_DIR $BASE_DIR not found."
     exit 1
 fi
 
 # Создаём backup если нужно
 if [ ! -d "$BACKUP_DIR" ]; then
-    echo "Создаю backup dir: $BACKUP_DIR"
+    echo "Creating backup dir: $BACKUP_DIR"
     sudo mkdir -p "$BACKUP_DIR"
 fi
 
 # Если backup не пустой — спрашиваем что делать (единожды)
 if [ "$(ls -A "$BACKUP_DIR" 2>/dev/null | wc -l)" -gt 0 ]; then
-    echo "Папка $BACKUP_DIR не пуста."
-    read -p "Что делать с существующими файлами в backup? (k) оставить / (d) удалить все: " bkchoice
+    echo "Directory $BACKUP_DIR is not empty."
+    read -p "What to do with existing files in backup? (k) keep / (d) delete all: " bkchoice
     if [[ "$bkchoice" == "d" || "$bkchoice" == "D" ]]; then
-        echo "Удаляю содержимое $BACKUP_DIR..."
+        echo "Deleting contents of $BACKUP_DIR..."
         sudo rm -rf "${BACKUP_DIR:?}/"*
     else
-        echo "Оставляю содержимое backup как есть."
+        echo "Keeping backup contents as is."
     fi
 fi
 
@@ -235,7 +235,7 @@ fi
 
 
 # 1) Ввод относительного пути
-read -p "Введите путь к папке (относительно $BASE_DIR): " relpath
+read -p "Enter folder path (relative to $BASE_DIR): " relpath
 
 relpath="${relpath#/}"
 folder="$BASE_DIR/$relpath"
@@ -244,10 +244,10 @@ proj_name=$(basename "$folder")
 # 2) Создать папку если нет и сообщить
 created_now=false
 if [ ! -d "$folder" ]; then
-    echo "Папка $folder не существует. Создаю..."
+    echo "Folder $folder does not exist. Creating..."
     mkdir -p "$folder"
     created_now=true
-    echo "Папка создана: $folder"
+    echo "Folder created: $folder"
 else
     echo "Folder $folder exists."
 fi
@@ -274,7 +274,7 @@ set_quota_for_folder() {
     echo "$proj_name:$new_id" | sudo tee -a "$PROJID_FILE" >/dev/null
     sudo xfs_quota -x -c "project -s $proj_name" "$BASE_DIR"
     sudo xfs_quota -x -c "limit -p bhard=$size_str $proj_name" "$BASE_DIR"
-    echo "Квота установлена: $size_str для $folder (projid=$new_id)"
+    echo "Quota set: $size_str for $folder (projid=$new_id)"
 }
 
 
@@ -283,41 +283,41 @@ set_quota_for_folder() {
 # 4) Ветки логики
 if [ -n "$proj_id" ]; then
     # Папка уже ограничена
-    echo "Папка уже имеет квоту (projid=$proj_id)."
+    echo "Folder already has quota (projid=$proj_id)."
     # Попробуем показать текущий жёсткий лимит
     cur_limit_bytes=$(get_project_hard_limit_bytes "$BASE_DIR" "$proj_name" || echo "")
     if [ -n "$cur_limit_bytes" ]; then
-        echo "Текущий жесткий лимит: $(to_human "$cur_limit_bytes")"
+        echo "Current hard limit: $(to_human "$cur_limit_bytes")"
     else
-        echo "Не удалось определить текущий жесткий лимит автоматически."
+        echo "Failed to determine current hard limit automatically."
     fi
 
-    read -p "Желаете изменить размер квоты? (y/n): " want_change
+    read -p "Do you want to change quota size? (y/n): " want_change
     if [[ "$want_change" =~ ^[Yy]$ ]]; then
         # ввод нового лимита (в цикле, если нужно)
         while true; do
-            read -p "Введите новый лимит (пример 100M, 1G): " new_limit_str
+            read -p "Enter new limit (example 100M, 1G): " new_limit_str
             new_limit_bytes=$(to_bytes "$new_limit_str")
             if [ "$new_limit_bytes" -le 0 ]; then
-                echo "Некорректный ввод. Попробуйте ещё раз."
+                echo "Invalid input. Please try again."
                 continue
             fi
             # сравнение с текущим размером папки
             current_size=$(folder_size_bytes "$folder")
 		#size_bytes="$cur_limit_bytes"
             if [ "$current_size" -gt "$new_limit_bytes" ]; then
-                echo "Внимание: текущий размер папки $(to_human "$current_size") превышает указанный лимит $(to_human "$new_limit_bytes")."
-                echo "Выберите действие:"
-                echo "  1) Ввести новый размер"
-                echo "  2) Продолжить и затем выбрать действие: (a) удалить старые файлы или (b) архивировать старые файлы"
-                read -p "Ваш выбор (1/2): " c1
+                echo "Warning: current folder size $(to_human "$current_size") exceeds specified limit $(to_human "$new_limit_bytes")."
+                echo "Choose action:"
+                echo "  1) Enter new size"
+                echo "  2) Continue and then choose: (a) delete old files or (b) archive old files"
+                read -p "Your choice (1/2): " c1
                 if [ "$c1" = "1" ]; then
                     continue
                 else
                     # пользователь решил продолжить: спросим удалить или архивировать
-                    echo "Выберите действие при превышении:"
-                    echo "  d) Удалить старые файлы"
-                    echo "  a) Архивировать старые файлы"
+                    echo "Choose action when exceeding limit:"
+                    echo "  d) Delete old files"
+                    echo "  a) Archive old files"
                     read -p "d/a: " da
                     if [[ "$da" == "d" ]]; then
                         delete_old_files_minimal "$folder" "$new_limit_bytes"
@@ -327,31 +327,31 @@ if [ -n "$proj_id" ]; then
                     # после удаления/архивации применяем лимит
                     sudo xfs_quota -x -c "limit -p bhard=$new_limit_str $proj_name" "$BASE_DIR"
                     size_bytes="$new_limit_bytes"
-                    echo "Квота изменена на $new_limit_str"
+                    echo "Quota changed to $new_limit_str"
                     break
                 fi
             else
                 # безопасно поменять
                 sudo xfs_quota -x -c "limit -p bhard=$new_limit_str $proj_name" "$BASE_DIR"
                 size_bytes="$new_limit_bytes"
-                echo "Квота успешно изменена на $new_limit_str"
+                echo "Quota successfully changed to $new_limit_str"
                 break
             fi
         done
     else
-        echo "Изменение квоты отменено."
+        echo "Quota change cancelled."
         size_bytes="$cur_limit_bytes"
     fi
 
 else
     # Папка не имела квоты
-    echo "Папка не имеет квоты."
+    echo "Folder has no quota."
     # Ввод лимита
     while true; do
-        read -p "Введите лимит для папки (например 100M, 1G): " size_str
+        read -p "Enter folder limit (e.g. 100M, 1G): " size_str
         size_bytes=$(to_bytes "$size_str")
         if [ "$size_bytes" -le 0 ]; then
-            echo "Некорректный лимит. Попробуйте ещё."
+            echo "Invalid limit. Please try again."
             continue
         fi
         break
@@ -361,20 +361,20 @@ else
     if ! $created_now; then
         current_size=$(folder_size_bytes "$folder")
         if [ "$current_size" -gt "$size_bytes" ]; then
-            echo "⚠️ Папка уже содержит $(to_human "$current_size"), что больше выбранного лимита $(to_human "$size_bytes")."
+            echo " Folder already contains $(to_human "$current_size"), which exceeds selected limit $(to_human "$size_bytes")."
             # цикл: выбирать новый размер или продолжить
             while true; do
-                read -p "Вы хотите (c) изменить размер, (p) продолжить с этим размером: c/p : " ch
+                read -p "Do you want to (c) change size, (p) proceed with this size: c/p : " ch
                 if [[ "$ch" == "c" ]]; then
                     while true; do
-                        read -p "Введите новый лимит: " size_str
+                        read -p "Enter new limit: " size_str
                         size_bytes=$(to_bytes "$size_str")
                         if [ "$size_bytes" -le 0 ]; then
-                            echo "Некорректный ввод."
+                            echo "Invalid input."
                             continue
                         fi
                         if [ "$size_bytes" -lt 1 ]; then
-                            echo "Слишком маленький."
+                            echo "Too small."
                             continue
                         fi
                         break
@@ -386,11 +386,11 @@ else
                     # иначе цикл продолжается — снова спрашиваем change/continue
                 else
                     # пользователь выбрал продолжить с текущим size_bytes
-                    echo "Вы выбрали продолжить. Теперь нужно выбрать действие: удалить или архивировать старые файлы (чтобы помещаться в лимит)."
-                    echo "  1) Удалить старые файлы"
-                    echo "  2) Архивировать старые файлы (в backup/${proj_name}/...)"
+                    echo "You chose to proceed. Now choose action: delete or archive old files (to fit within limit)."
+                    echo "  1) Delete old files"
+                    echo "  2) Archive old files (to backup/${proj_name}/...)"
                     while true; do
-                        read -p "Ваш выбор (1/2): " opt
+                        read -p "Your choice (1/2): " opt
                         if [ "$opt" = "1" ]; then
                             delete_old_files_minimal "$folder" "$size_bytes"
                             break
@@ -398,7 +398,7 @@ else
                             archive_files "$folder" "$size_bytes" "initial_limit_$(date +%Y%m%d%H%M%S)"
                             break
                         else
-                            echo "Введите 1 или 2."
+                            echo "Enter 1 or 2."
                         fi
                     done
                     break
@@ -411,36 +411,36 @@ else
     fi
 
     # Теперь устанавливаем квоту (создаём записи)
-    echo "Регистрирую проект и ставлю квоту..."
+    echo "Registering project and setting quota..."
     sudo touch "$PROJ_FILE" "$PROJID_FILE"
     proj_id=$(( $(cut -d: -f1 "$PROJ_FILE" 2>/dev/null | sort -n | tail -1 || echo 100) + 1 ))
     echo "$proj_id:$folder" | sudo tee -a "$PROJ_FILE" >/dev/null
     echo "$proj_name:$proj_id" | sudo tee -a "$PROJID_FILE" >/dev/null
     sudo xfs_quota -x -c "project -s $proj_name" "$BASE_DIR"
     sudo xfs_quota -x -c "limit -p bhard=$size_str $proj_name" "$BASE_DIR"
-    echo "Квота установлена: $size_str для $folder (projid=$proj_id)"
+    echo "Quota set: $size_str for $folder (projid=$proj_id)"
 
     if $created_now; then
-        echo "Папка была только что создана."
+        echo "Folder was just created."
 	while true; do
-	    read -p "Введите размер одного файла (например 10M): " file_size_str
+	    read -p "Enter single file size (e.g. 10M): " file_size_str
 	    
 	    if [[ ! "$file_size_str" =~ ^[0-9]+[KMG]$ ]]; then
-		echo "Некорректный ввод. Формат: число + суффикс K, M или G (например 10M)"
+		echo "Invalid input. Format: number + suffix K, M or G (e.g. 10M)"
 		continue
 	    fi
 
-	    read -p "Сколько файлов создать (k)? " k
+	    read -p "How many files to create (k)? " k
 	    
 	    if ! [[ "$k" =~ ^[0-9]+$ ]] || [ "$k" -le 0 ]; then
-		echo "Некорректное число файлов. Введите положительное целое число."
+		echo "Invalid number of files. Enter positive integer."
 		continue
 	    fi
 	    #comparing our size with folder's size
 	    file_size_bytes=$(to_bytes "$file_size_str")
 	    total_needed=$((file_size_bytes * k))
 	    if [ "$total_needed" -gt "$size_bytes" ]; then
-		echo "Суммарный размер $k файлов ($(to_human "$total_needed")) превышает лимит папки $(to_human "$size_bytes")."
+		echo "Total size of $k files ($(to_human "$total_needed")) exceeds folder limit $(to_human "$size_bytes")."
 		continue
 	    fi
 	    break
@@ -451,48 +451,46 @@ else
                     dd if=/dev/zero of="$fname" bs="$file_size_str" count=1 status=none
                     
         done
-        echo "Создание файлов завершено."
+        echo "File creation completed."
     fi
 fi
 
 # --- Далее общий шаг: показать текущую информацию о папке и квоте
 echo
-echo "Текущий статус проекта и папки:"
+echo "Current project and folder status:"
 sudo xfs_quota -x -c "report -p" "$BASE_DIR" || true
 current_size=$(folder_size_bytes "$folder")
 
-echo "Фактический размер папки: $(to_human "$current_size")"
+echo "Actual folder size: $(to_human "$current_size")"
 
 # Запрос процентов n
 while true; do
-    read -p "Введите порог (в процентах) заполнения папки относительно лимита (1-100): " nperc
+    read -p "Enter threshold (in percent) of folder usage relative to limit (1-100): " nperc
     if [[ "$nperc" =~ ^[0-9]+$ ]] && [ "$nperc" -ge 1 ] && [ "$nperc" -le 100 ]; then
         break
     fi
-    echo "Введите число от 1 до 100."
+    echo "Enter number from 1 to 100."
 done
 
 threshold=$(( size_bytes * nperc / 100 ))
-echo "Порог (n%): $(to_human "$threshold")"
+echo "Threshold (n%): $(to_human "$threshold")"
 
 # Если текущий размер > threshold -> архивируем минимальное количество старых файлов
 if [ "$current_size" -gt "$threshold" ]; then
-    echo "Текущий размер $(to_human "$current_size") больше порога $(to_human "$threshold")."
-    echo "Архивация минимального количества старых файлов до порога..."
+    echo "Current size $(to_human "$current_size") exceeds threshold $(to_human "$threshold")."
+    echo "Archiving minimal number of old files to reach threshold..."
     # Архивация в подпапку с пометкой percent_cleanup_TIMESTAMP
     archive_files "$folder" "$threshold" "percent_cleanup_$(date +%Y%m%d%H%M%S)"
-    echo "После архивации:"
+    echo "After archiving:"
     current_size=$(folder_size_bytes "$folder")
-    echo "Новый размер папки: $(to_human "$current_size")"
+    echo "New folder size: $(to_human "$current_size")"
 else
-    echo "Текущий размер $(to_human "$current_size") не превышает порог $(to_human "$threshold"). Ничего не делаем."
+    echo "Current size $(to_human "$current_size") does not exceed threshold $(to_human "$threshold"). No action needed."
 fi
 
 # Финальный отчёт
 echo
-echo "Финальный отчёт по квотам:"
+echo "Final quota report:"
 sudo xfs_quota -x -c "report -p" "$BASE_DIR" || true
-echo "Финальный размер папки: $(to_human "$(folder_size_bytes "$folder")")"
-echo "Готово."
-
-
+echo "Final folder size: $(to_human "$(folder_size_bytes "$folder")")"
+echo "Done."
