@@ -284,6 +284,9 @@ set_quota_for_folder() {
 if [ -n "$proj_id" ]; then
     # Папка уже ограничена
     echo "Folder already has quota (projid=$proj_id)."
+    # Выравниваем владельца проекта, чтобы избежать Permission denied
+    chown -R "$SUDO_USER":"$SUDO_USER" "$folder"
+
     # Попробуем показать текущий жёсткий лимит
     cur_limit_bytes=$(get_project_hard_limit_bytes "$BASE_DIR" "$proj_name" || echo "")
     if [ -n "$cur_limit_bytes" ]; then
@@ -462,6 +465,63 @@ sudo xfs_quota -x -c "report -p" "$BASE_DIR" || true
 current_size=$(folder_size_bytes "$folder")
 
 echo "Actual folder size: $(to_human "$current_size")"
+
+
+# Предложение добавить файлы в проект (только если папка не новая)
+if ! $created_now; then
+    read -p "Do you want to add files to this folder? (y/n): " add_files
+    if [[ "$add_files" =~ ^[Yy]$ ]]; then
+        while true; do
+            read -p "Enter single file size (e.g. 10M): " file_size_str
+
+            if [[ ! "$file_size_str" =~ ^[0-9]+[KMG]$ ]]; then
+                echo "Invalid input. Format: number + suffix K, M or G (e.g. 10M)"
+                continue
+            fi
+
+            read -p "How many files to create (k)? " k
+
+            if ! [[ "$k" =~ ^[0-9]+$ ]] || [ "$k" -le 0 ]; then
+                echo "Invalid number of files. Enter positive integer."
+                continue
+            fi
+
+            # Проверяем, не превышает ли суммарный размер лимит квоты
+            file_size_bytes=$(to_bytes "$file_size_str")
+            total_needed=$((file_size_bytes * k))
+            if [ "$((current_size + total_needed))" -gt "$size_bytes" ]; then
+                echo "Total size of $k new files ($(to_human "$total_needed")) + current size ($(to_human "$current_size")) exceeds folder limit $(to_human "$size_bytes")."
+                echo "Please choose smaller files or fewer files."
+                continue
+            fi
+            break
+        done
+
+        echo "Creating $k files of size $file_size_str..."
+        for i in $(seq 1 "$k"); do
+            fname="$folder/file_$(date +%s)_$i.bin"
+            dd if=/dev/zero of="$fname" bs="$file_size_str" count=1 status=none
+        done
+        echo "File creation completed."
+
+        # Обновляем текущий размер папки после добавления файлов
+        current_size=$(folder_size_bytes "$folder")
+        echo "Updated folder size: $(to_human "$current_size")"
+    fi
+fi
+
+
+
+echo "Current project and folder status:"
+sudo xfs_quota -x -c "report -p" "$BASE_DIR" || true
+current_size=$(folder_size_bytes "$folder")
+
+echo "Actual folder size: $(to_human "$current_size")"
+
+
+
+
+
 
 # Запрос процентов n
 while true; do
