@@ -1,10 +1,5 @@
-# === Windows PowerShell Disk Quota Manager ===
-# Полная версия с исправлениями и работающей архивацией по проценту использования.
-
 $BASE_DIR = "C:\Users\kanuk\newXFSdisk"
 $BACKUP_DIR = Join-Path $BASE_DIR "backup"
-
-# --- Utility Functions ---
 
 function To-Bytes($s) {
     if (-not $s) { return 0 }
@@ -36,7 +31,7 @@ function Files-SortedByCtime($folder) {
     Get-ChildItem -Path $folder -File | Sort-Object CreationTime
 }
 
-# --- Archive and delete logic ---
+# Архив и удаление
 
 function Archive-Files($folder, $limitBytes, $moment) {
     $current = Folder-SizeBytes $folder
@@ -103,7 +98,7 @@ function Delete-OldFiles-Minimal($folder, $limitBytes) {
     Write-Host "delete_old_files_minimal: deleted $($delFiles.Count) files."
 }
 
-# --- Initialization ---
+# Инициализация
 
 if (-not (Test-Path $BASE_DIR)) {
     Write-Host "Error: BASE_DIR $BASE_DIR not found."
@@ -115,7 +110,7 @@ if (-not (Test-Path $BACKUP_DIR)) {
     New-Item -ItemType Directory -Path $BACKUP_DIR | Out-Null
 }
 
-# --- Folder input ---
+# ввод пути к папке
 $relpath = Read-Host "Enter folder path (relative to $BASE_DIR)"
 $relpath = $relpath.TrimStart('\')
 $folder = Join-Path $BASE_DIR $relpath
@@ -128,7 +123,7 @@ if (-not (Test-Path $folder)) {
     Write-Host "Folder exists: $folder"
 }
 
-# --- Limit input ---
+# ввод лимита
 while ($true) {
     $size_str = Read-Host "Enter folder limit (e.g. 100M, 1G)"
     $size_bytes = To-Bytes $size_str
@@ -147,7 +142,7 @@ if ($current_size -gt $size_bytes) {
     }
 }
 
-# --- File creation ---
+# создание файлов
 if ($created_now) {
     while ($true) {
         $file_size_str = Read-Host "Enter single file size (e.g. 10M)"
@@ -167,7 +162,7 @@ if ($created_now) {
     Write-Host "File creation completed."
 }
 
-# --- Threshold control ---
+# контроль порога
 while ($true) {
     $npercStr = Read-Host "Enter threshold (1-100) of folder usage relative to limit"
     if ($npercStr -match '^\d+$') {
