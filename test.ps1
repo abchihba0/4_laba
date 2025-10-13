@@ -1,6 +1,3 @@
-# === Pure PowerShell automated tester for disk_quota_manager.ps1 ===
-# Fully automated; no expect.exe required.
-
 $ErrorActionPreference = "Stop"
 
 $SCRIPT = "C:\Users\kanuk\OneDrive\Desktop\script.ps1"
@@ -41,12 +38,12 @@ function Run-Test($name, [string[]]$answers) {
 }
 
 
-# --- Environment setup ---
+# настройка среды
 New-Item -ItemType Directory -Force -Path $BASE_DIR | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $BASE_DIR "backup") | Out-Null
 Remove-Item -Recurse -Force (Join-Path $BASE_DIR "backup\*") -ErrorAction SilentlyContinue
 
-# --- TEST 1: Create new folder and files ---
+#  тест 1 создание папки и файлов
 $DIR_A = "t1_existing_noquota"
 $FULL_A = Join-Path $BASE_DIR $DIR_A
 Remove-Item -Recurse -Force $FULL_A -ErrorAction SilentlyContinue
@@ -60,7 +57,7 @@ Run-Test "T1_Create_Quota_and_Files" @(
 )
 if (Test-Path $FULL_A) { Pass "T1: folder created successfully" } else { Fail "T1: folder not created" }
 
-# --- TEST 2: Reuse existing folder, no change quota ---
+# тест 2 повторное использование существующей папки, не изменяя квоту
 Run-Test "T2_NoChangeQuota" @(
     $DIR_A,
     "10M",
@@ -68,15 +65,15 @@ Run-Test "T2_NoChangeQuota" @(
 )
 Pass "T2 executed"
 
-# --- TEST 3: Decrease quota below used size (forces archive/delete) ---
+# тест 3 снижать квоту ниже использованного размера (заставляет архивировать/удалять)
 Run-Test "T3_DecreaseQuota" @(
     $DIR_A,
     "5M",
-    "50"   # threshold
+    "50"   # порог
 )
 Pass "T3 executed"
 
-# --- TEST 4: Increase quota again ---
+# тест 4 потворное увеличение квоты
 Run-Test "T4_IncreaseQuota" @(
     $DIR_A,
     "10M",
@@ -86,7 +83,7 @@ Run-Test "T4_IncreaseQuota" @(
 )
 Pass "T4 executed"
 
-# --- TEST 5: Folder already exceeds limit; choose archive ---
+# тест 5 папка уже превышает ограничение; выбор архив
 $DIR_B = "t5_archive_case"
 $FULL_B = Join-Path $BASE_DIR $DIR_B
 Remove-Item -Recurse -Force $FULL_B -ErrorAction SilentlyContinue
@@ -97,14 +94,14 @@ for ($i=1; $i -le 5; $i++) {
 Run-Test "T5_ArchiveOverflow" @(
     $DIR_B,
     "3M",
-    "a",   # Archive
-    "50"   # threshold
+    "a",   # архив
+    "50"   # порог
 )
 # Проверяем, создался ли архив
 $archiveExists = Get-ChildItem -Path (Join-Path $BASE_DIR "backup") -Recurse -Filter "*.zip" | Where-Object { $_.FullName -match $DIR_B }
 if ($archiveExists) { Pass "T5: archive created" } else { Fail "T5: archive not found" }
 
-# --- TEST 6: Delete overflow case ---
+# тест 6 удаление при переполнении
 $DIR_C = "t6_delete_overflow"
 $FULL_C = Join-Path $BASE_DIR $DIR_C
 Remove-Item -Recurse -Force $FULL_C -ErrorAction SilentlyContinue
@@ -115,13 +112,13 @@ for ($i=1; $i -le 5; $i++) {
 Run-Test "T6_DeleteOverflow" @(
     $DIR_C,
     "3M",
-    "d",   # Delete
-    "50"   # threshold
+    "d",   # удаление
+    "50"   # порог
 )
 $used = (Get-ChildItem -Recurse -File $FULL_C | Measure-Object -Property Length -Sum).Sum
 if ($used -le 3MB) { Pass "T6: deletion reduced usage ≤3MB ($used bytes)" } else { Fail "T6: deletion did not reduce enough ($used bytes)" }
 
-# --- TEST 7: Nonexistent folder created by script ---
+# тест 7 папка не существует, создается скриптом
 $DIR_NEW = "t7_created_by_script"
 $FULL_NEW = Join-Path $BASE_DIR $DIR_NEW
 Remove-Item -Recurse -Force $FULL_NEW -ErrorAction SilentlyContinue
@@ -135,3 +132,4 @@ Run-Test "T7_Create_Nonexistent" @(
 if (Test-Path $FULL_NEW) { Pass "T7: script created folder $FULL_NEW" } else { Fail "T7: folder not created" }
 
 Write-Host "`nAll tests finished. See log: $LOG" -ForegroundColor Yellow
+
