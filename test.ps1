@@ -23,7 +23,7 @@ function Run-Test($name, [string[]]$answers) {
     Set-Content -Path $tempInput -Value $inputText -Encoding UTF8
 
     try {
-        # Используем Get-Content вместо '<'
+        
         $output = Get-Content $tempInput | powershell -NoProfile -ExecutionPolicy Bypass -File $SCRIPT 2>&1
         $output | Tee-Object -Append -FilePath $LOG | Out-Null
         return $output
@@ -49,11 +49,11 @@ $FULL_A = Join-Path $BASE_DIR $DIR_A
 Remove-Item -Recurse -Force $FULL_A -ErrorAction SilentlyContinue
 
 Run-Test "T1_Create_Quota_and_Files" @(
-    $DIR_A,      # Enter folder path
-    "10M",       # Enter folder limit
-    "1M",        # Enter single file size
-    "5",         # How many files to create
-    "60"         # Enter threshold
+    $DIR_A,     
+    "10M",      
+    "1M",       
+    "5",        
+    "60"        
 )
 if (Test-Path $FULL_A) { Pass "T1: folder created successfully" } else { Fail "T1: folder not created" }
 
@@ -61,7 +61,7 @@ if (Test-Path $FULL_A) { Pass "T1: folder created successfully" } else { Fail "T
 Run-Test "T2_NoChangeQuota" @(
     $DIR_A,
     "10M",
-    "40"   # threshold
+    "40"   
 )
 Pass "T2 executed"
 
@@ -69,7 +69,7 @@ Pass "T2 executed"
 Run-Test "T3_DecreaseQuota" @(
     $DIR_A,
     "5M",
-    "50"   # порог
+    "50"   
 )
 Pass "T3 executed"
 
@@ -95,7 +95,7 @@ Run-Test "T5_ArchiveOverflow" @(
     $DIR_B,
     "3M",
     "a",   # архив
-    "50"   # порог
+    "50"   
 )
 # Проверяем, создался ли архив
 $archiveExists = Get-ChildItem -Path (Join-Path $BASE_DIR "backup") -Recurse -Filter "*.zip" | Where-Object { $_.FullName -match $DIR_B }
@@ -113,7 +113,7 @@ Run-Test "T6_DeleteOverflow" @(
     $DIR_C,
     "3M",
     "d",   # удаление
-    "50"   # порог
+    "50"   
 )
 $used = (Get-ChildItem -Recurse -File $FULL_C | Measure-Object -Property Length -Sum).Sum
 if ($used -le 3MB) { Pass "T6: deletion reduced usage ≤3MB ($used bytes)" } else { Fail "T6: deletion did not reduce enough ($used bytes)" }
@@ -132,4 +132,5 @@ Run-Test "T7_Create_Nonexistent" @(
 if (Test-Path $FULL_NEW) { Pass "T7: script created folder $FULL_NEW" } else { Fail "T7: folder not created" }
 
 Write-Host "`nAll tests finished. See log: $LOG" -ForegroundColor Yellow
+
 
